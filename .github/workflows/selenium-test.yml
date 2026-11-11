@@ -1,4 +1,4 @@
-name: Selenium Tests
+name: Selenium Tests and Docker Publish
 
 on:
   push:
@@ -8,14 +8,13 @@ on:
 
 jobs:
   selenium-test:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -26,3 +25,30 @@ jobs:
 
       - name: Run Selenium tests
         run: mvn --batch-mode clean test
+
+  build-and-publish-docker:
+    needs: selenium-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            preethamlmd/selenium
+            preethamlmd/selenium:${{ github.sha }}
